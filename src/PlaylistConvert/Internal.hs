@@ -42,14 +42,5 @@ class ServiceToken a where
 -- | Create 'Option' with 'ServiceToken' embedded inside
   requestTokenOpts :: a -> Option 'Https
 
-newtype TidalToken = TidalToken B.ByteString deriving Show
-instance ServiceToken TidalToken where
-  requestTokenOpts (TidalToken token) =
-    "countryCode" =: ("US" :: String) <> oAuth2Bearer token
-
-
--- | Base 'Url' for all Tidal API operations
-tidalAPIUrl :: Url 'Https
-tidalAPIUrl = https "listen.tidal.com" /: "v1"
-
+-- | Page, used in paginated requests such as searching for 'Track's
 type Page = Int

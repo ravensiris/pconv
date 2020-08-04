@@ -1,7 +1,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DeriveGeneric #-}
-module Deezer where
+module Deezer (deezerSearch) where
 
 import           PlaylistConvert.Internal
 
