@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 7dde5d9270037a30176fe72ee1e8123de28847d3d25126ec67d33ba2aa800602
+-- hash: 2b68bbb013f56a4af4e1b9aa4316652eba75c92f07d65aaaf2783f2ccb3f0877
 
 name:           pconv
 version:        0.1.0.0
@@ -28,7 +28,8 @@ library
   exposed-modules:
       Deezer
       PlaylistConvert.Internal
-      PlaylistConvert.Service.Service
+      PlaylistConvert.Service
+      PlaylistConvert.Service.Deezer
       Tidal
   other-modules:
       Paths_pconv
