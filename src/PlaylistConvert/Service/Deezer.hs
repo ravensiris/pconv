@@ -1,9 +1,11 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE DuplicateRecordFields #-}
 module PlaylistConvert.Service.Deezer
   ( Deezer(..)
-  , deezerNotAuthenticatedToken 
+  , deezerNotAuthenticatedToken
+  , playlist
   )
 where
 
@@ -23,13 +25,14 @@ import GHC.Generics
 import           Network.HTTP.Req
 
 import Data.Maybe
+import Control.Applicative
+import Data.List
 
 
 -- | Base 'Url' for all Deezer API operations
 deezerAPIUrl :: Url 'Https
 deezerAPIUrl = https "www.deezer.com" /: "ajax" /: "gw-light.php"
 
-data DeezerMethod = GetUserData | MusicSearch
 
 data DeezerToken = DeezerToken String CookieJar deriving Show
 
@@ -37,8 +40,8 @@ newtype Deezer = Deezer (Maybe DeezerToken) deriving Show
 
 data DeezerQuery = DeezerQuery
   { query :: T.Text,
-    start :: Int,
-    nb :: Int,
+    start :: Page,
+    nb :: MaxItemsPerRequest,
     filter :: String,
     output :: String
   }
@@ -62,12 +65,16 @@ parseTracks = withObject "Tracks" $ \o -> mapM parseDeezerTrack =<< (.: "data") 
 
 -- | Parsing 'Track' from Deezer JSON 'Object's
 parseDeezerTrack :: Object -> Parser (Track Deezer)
-parseDeezerTrack o = Track <$> title <*> album <*> artists <*> tid
+parseDeezerTrack o = Track <$> title <*> album <*> (artists <|> artist) <*> tid
     where
         tid     = Id (Deezer Nothing) <$> o .: "SNG_ID"
         title   = o .: "SNG_TITLE"
         artists = mapM (.: "ART_NAME") =<< o .: "ARTISTS"
+        artist = (`insert` []) <$> (o .: "ART_NAME" :: Parser T.Text)
         album   = o .: "ALB_TITLE"
+
+
+data DeezerMethod = GetUserData | MusicSearch | PlaylistGetSongs
 
 requestOpts :: DeezerToken -> DeezerMethod -> Option 'Https
 requestOpts (DeezerToken token cookies) method =
@@ -84,6 +91,7 @@ requestOpts (DeezerToken token cookies) method =
        methodS :: DeezerMethod -> String
        methodS GetUserData = "deezer.getUserData"
        methodS MusicSearch = "search.music"
+       methodS PlaylistGetSongs = "playlist.getSongs"
     
 deezerNotAuthenticatedToken :: (MonadHttp m) => m (Maybe DeezerToken)
 deezerNotAuthenticatedToken  = do
@@ -105,7 +113,28 @@ deezerSearch token page maxItems query = do
   where
     opts = requestOpts token MusicSearch
     jsonQuery = ReqBodyJson $ deezerQuery query page maxItems
-                                         
+
+
+
+type DeezerPlaylistId = T.Text
+
+data DeezerPlaylistQuery = DeezerPlaylistQuery
+  {
+    nb :: MaxItemsPerRequest
+  , playlist_id :: DeezerPlaylistId
+  , start :: Page
+  } deriving (Show, Generic)
+instance ToJSON DeezerPlaylistQuery
+
+deezerPlaylist :: (MonadHttp m) =>
+  DeezerToken -> Page -> MaxItemsPerRequest -> DeezerPlaylistId -> m (Maybe [Track Deezer])
+deezerPlaylist token page maxItems playlistId = do
+  response <- req POST deezerAPIUrl jsonQuery jsonResponse opts
+  return $ parseMaybe parseTracks $ responseBody response
+  where
+    opts = requestOpts token PlaylistGetSongs
+    jsonQuery = ReqBodyJson $ DeezerPlaylistQuery maxItems playlistId page
+                
 instance Service Deezer where
   -- | For multiple searches it is advised to create a token once
   --
@@ -118,6 +147,15 @@ instance Service Deezer where
   --
   --   Take a look at 'deezerNotAuthenticatedToken'
   search (Deezer Nothing) s = do
-    token <- fromJust <$> deezerNotAuthenticatedToken
-    searchResult <- deezerSearch token 0 40 s
-    return $ fromMaybe [] searchResult
+    -- WARN: Might result in stack overflow
+    -- TODO: Handle error when getting the token results in failure
+    token <- Deezer <$> deezerNotAuthenticatedToken
+    search token s
+
+  playlist (Id (Deezer (Just token)) playlistId) = fromMaybe []
+    <$> deezerPlaylist token 0 2000 playlistId
+  playlist (Id (Deezer Nothing) playlistId)= do
+    -- WARN: Might result in stack overflow
+    -- TODO: Handle error when getting the token results in failure
+    token <- Deezer <$> deezerNotAuthenticatedToken
+    playlist $ Id token playlistId

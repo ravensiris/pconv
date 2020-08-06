@@ -29,4 +29,6 @@ data Track a = Track {
 class Service a where
   -- | Search given 'Service' for tracks given a 'T.Text' query
   search :: (MonadHttp m) => a -> T.Text -> m [Track a]
+  -- | Return a list of 'Track' given a playlist id
+  playlist :: (MonadHttp m) => Id a -> m [Track a]
 
