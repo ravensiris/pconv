@@ -61,11 +61,11 @@ deezerQuery query page maxItems = DeezerQuery
 
 -- | Parse a list of 'Track'        
 parseTracks :: Value -> Parser [Track Deezer]
-parseTracks = withObject "Tracks" $ \o -> mapM parseDeezerTrack =<< (.: "data") =<< (o .: "results")
+parseTracks = withObject "Tracks" $ \o -> mapM parseTrack =<< (.: "data") =<< (o .: "results")
 
 -- | Parsing 'Track' from Deezer JSON 'Object's
-parseDeezerTrack :: Object -> Parser (Track Deezer)
-parseDeezerTrack o = Track <$> title <*> album <*> (artists <|> artist) <*> tid
+parseTrack :: Object -> Parser (Track Deezer)
+parseTrack o = Track <$> title <*> album <*> (artists <|> artist) <*> tid
     where
         tid     = Id (Deezer Nothing) <$> o .: "SNG_ID"
         title   = o .: "SNG_TITLE"
