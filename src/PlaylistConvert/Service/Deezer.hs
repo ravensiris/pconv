@@ -16,6 +16,7 @@ import qualified Data.Text as T
 import           Data.Aeson
 import           Data.Aeson.Types               ( Parser
                                                 , parseMaybe
+                                                , parseEither
                                                 )
 import           Network.HTTP.Client            ( CookieJar )
 
@@ -108,8 +109,8 @@ deezerNotAuthenticatedToken  = do
 deezerSearch :: (MonadHttp m) =>
   DeezerToken -> Page -> MaxItemsPerRequest -> T.Text -> m (Maybe [Track Deezer])
 deezerSearch token page maxItems query = do
-  response <- req POST deezerAPIUrl jsonQuery jsonResponse opts
-  return $ parseMaybe parseTracks $ responseBody response
+  response <- responseBody <$> req POST deezerAPIUrl jsonQuery jsonResponse opts
+  return $ parseMaybe parseTracks response
   where
     opts = requestOpts token MusicSearch
     jsonQuery = ReqBodyJson $ deezerQuery query page maxItems

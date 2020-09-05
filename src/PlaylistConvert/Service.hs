@@ -31,4 +31,6 @@ class Service a where
   search :: (MonadHttp m) => a -> T.Text -> m [Track a]
   -- | Return a list of 'Track' given a playlist id
   playlist :: (MonadHttp m) => Id a -> m [Track a]
+  -- | Convert 'Track' between 'Service's
+  convert :: (MonadHttp m, Service b) => Track a -> b -> m (Track b)
 
