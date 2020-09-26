@@ -1,16 +1,18 @@
+{-# LANGUAGE OverloadedStrings #-}
 module PlaylistConvert.Service
   (
     Track ( .. )
   , Id ( .. )
   , Service ( .. )
   , Page
-  , MaxItemsPerRequest 
+  , MaxItemsPerRequest
+  , convert
   ) where
 
 import qualified Data.Text as T
 
 import           Network.HTTP.Req ( MonadHttp )
-
+import Data.Maybe (listToMaybe)
 -- | For paginated API requests
 type Page = Int
 
@@ -31,6 +33,11 @@ class Service a where
   search :: (MonadHttp m) => a -> T.Text -> m [Track a]
   -- | Return a list of 'Track' given a playlist id
   playlist :: (MonadHttp m) => Id a -> m [Track a]
-  -- | Convert 'Track' between 'Service's
-  convert :: (MonadHttp m, Service b) => Track a -> b -> m (Track b)
 
+
+-- | Convert 'Track' between 'Service's
+convert :: (MonadHttp m, Service a, Service b) => a -> Track b -> m (Maybe (Track a))
+convert s Track {trackTitle=title, trackArtists=artists} = 
+  listToMaybe <$> search s query
+  where
+    query = T.intercalate " " [(head artists), title]
